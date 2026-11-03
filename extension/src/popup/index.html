@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ShieldCheckout</title>
+<style>
+  :root{color-scheme:light dark;--bg:#fff;--fg:#111;--mut:#667;--line:#e3e5ea;--acc:#f4b728;--ok:#0a7;--bad:#c00}
+  @media (prefers-color-scheme:dark){:root{--bg:#16181d;--fg:#f1f1f1;--mut:#9aa;--line:#2a2e36}}
+  body{margin:0;width:360px;background:var(--bg);color:var(--fg);font:14px system-ui}
+  main{padding:16px}
+  h1{font-size:16px;margin:0 0 2px} .sub{color:var(--mut);margin:0 0 14px;word-break:break-all}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .row span:first-child{color:var(--mut)} .big{font-size:18px;font-weight:700}
+  button.p{width:100%;margin-top:14px;padding:12px;border:0;border-radius:8px;background:var(--acc);color:#111;font:600 15px system-ui;cursor:pointer}
+  button.p:disabled{opacity:.5;cursor:default} button.s{padding:5px 9px;border:1px solid var(--line);background:none;color:var(--fg);border-radius:6px;cursor:pointer}
+  a.w{display:block;text-align:center;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--fg);text-decoration:none}
+  canvas{display:block;margin:10px auto} .note{color:var(--mut);font-size:12px;margin-top:10px}
+  ol{padding-left:20px;margin:12px 0} li{padding:2px 0;color:var(--mut)} li.done{color:var(--ok)} li.cur{color:var(--fg);font-weight:700}
+  .err{color:var(--bad);margin-top:10px} code{word-break:break-all;font-size:12px} .addr{margin:8px 0}
+</style></head>
+<body><main id="app">Loading…</main><script type="module" src="./index.ts"></script></body></html>

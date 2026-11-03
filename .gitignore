@@ -1,0 +1,9 @@
+.env
+node_modules
+dist
+target
+wallet-seed.txt
+wallet-seed-testnet.txt
+.env.testnet
+watcher-state*.json
+orders-*.json
