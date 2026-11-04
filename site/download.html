@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download – ShieldCheckout extension</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="top">
+    <div class="container">
+      <a href="index.html" class="logo"><span class="logo-mark">S</span> ShieldCheckout</a>
+      <div class="links"><a href="index.html#how">How it works</a><a href="docs.html">Docs</a></div>
+      <a class="btn" href="docs.html">Docs</a>
+    </div>
+  </nav>
+
+  <main class="container dl">
+    <p class="eyebrow">Download</p>
+    <h1 style="font-size:clamp(32px,5vw,52px)">Get the ShieldCheckout extension</h1>
+    <p class="lead" id="status">Your download should start automatically. If it doesn't, use the button below.</p>
+    <div class="cta-row">
+      <a id="dl" class="btn primary lg" href="downloads/shieldcheckout-extension.zip" download>⬇ Download shieldcheckout-extension.zip</a>
+    </div>
+    <p class="fine">Version 0.1.0 · Chrome / Chromium (Manifest V3)</p>
+
+    <div class="grid three" style="margin-top:56px">
+      <div class="card"><span class="step-n">STEP 1</span><h3>Unzip</h3><p>Extract the zip to a folder you'll keep, e.g. <code>~/shieldcheckout-extension</code>. Chrome reads from it, so don't delete it.</p></div>
+      <div class="card"><span class="step-n">STEP 2</span><h3>Load unpacked</h3><p>Open <code>chrome://extensions</code>, switch on <b>Developer mode</b>, click <b>Load unpacked</b> and pick the folder.</p></div>
+      <div class="card"><span class="step-n">STEP 3</span><h3>Shop</h3><p>Start the server, open <code>localhost:8787/agent</code>, and go to a Flipkart checkout. <a href="docs.html#quickstart" style="color:var(--accent)">See quickstart →</a></p></div>
+    </div>
+  </main>
+
+  <footer style="margin-top:80px">
+    <div class="container">
+      <span>© 2026 ShieldCheckout</span>
+      <span><a href="index.html">Home</a> · <a href="docs.html">Docs</a></span>
+    </div>
+  </footer>
+
+  <script>
+    // Redirect-style flow: landing CTAs come here, and the download starts on its own.
+    setTimeout(function () {
+      var a = document.getElementById('dl');
+      a.click();
+      document.getElementById('status').textContent = 'Download started. Follow the three steps below to install.';
+    }, 800);
+  </script>
+</body>
+</html>

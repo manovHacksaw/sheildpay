@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShieldCheckout – Pay at Indian checkouts with shielded Zcash</title>
+  <meta name="description" content="An agent prices your basket, buys the gift card on Bitrefill, and the extension types it into the merchant's payment page. The merchant never sees crypto; the chain never sees you.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="top">
+    <div class="container">
+      <a href="index.html" class="logo"><span class="logo-mark">S</span> ShieldCheckout</a>
+      <div class="links">
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+        <a href="docs.html">Docs</a>
+      </div>
+      <a class="btn primary" href="download.html">Download extension</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="container">
+      <span class="pill"><b>New</b> · Live on Flipkart India</span>
+      <h1>Pay at checkout with <em>shielded Zcash</em></h1>
+      <p class="lead">An agent prices your basket and buys the gift card. Our Chrome extension types it into the payment page. The merchant never sees crypto; the chain never sees you.</p>
+      <div class="cta-row">
+        <a class="btn primary lg" href="download.html">⬇ Download extension</a>
+        <a class="btn lg" href="docs.html">Read the docs</a>
+      </div>
+      <p class="fine">Free · Chrome / Chromium · No signup</p>
+
+      <div class="mock" aria-hidden="true">
+        <div class="mock-bar"><i></i><i></i><i></i></div>
+        <div class="mock-body">
+          <div class="chat">
+            <div class="bubble me">₹300 on flipkart</div>
+            <div class="bubble ai">Best cover for ₹300: 1 × ₹100 + 1 × ₹200 cards. Total 0.0xx ZEC incl. fee. Pay from balance?</div>
+            <div class="bubble ai">✓ Cards delivered. Open your Flipkart checkout and click “Pay with Zcash”.</div>
+          </div>
+          <div>
+            <div class="row"><span>Cards</span><b>₹300</b></div>
+            <div class="row"><span>Network</span><b>Orchard (shielded)</b></div>
+            <div class="row"><span>Confirmations</span><b>1</b></div>
+            <div class="row"><span>Status</span><b>Filled into checkout</b></div>
+            <button class="btn primary">Pay with Zcash</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="how">
+    <div class="container center">
+      <p class="eyebrow">How it works</p>
+      <h2>From chat to checkout in five steps</h2>
+      <p class="sub">No wallet pop-ups, no copy-pasting gift card codes.</p>
+      <div class="grid three" style="text-align:left">
+        <div class="card"><span class="step-n">01</span><h3>Top up once</h3><p>Send shielded ZEC to a fresh Orchard address. It's credited after 1 confirmation, exactly once per deposit.</p></div>
+        <div class="card"><span class="step-n">02</span><h3>Ask the agent</h3><p>“₹300 on flipkart.” The agent picks denominations with the least waste and the server prices the basket.</p></div>
+        <div class="card"><span class="step-n">03</span><h3>Click to pay</h3><p>Pay from your balance, or scan a ZIP-321 QR for a single order from your own wallet.</p></div>
+        <div class="card"><span class="step-n">04</span><h3>Card delivered</h3><p>We buy on Bitrefill and wait until the code is actually <i>delivered</i>, not just paid.</p></div>
+        <div class="card"><span class="step-n">05</span><h3>Auto-filled</h3><p>On the payment page, the extension types the code and PIN into the gift-card field with real input events.</p></div>
+        <div class="card" style="border-color:rgba(244,183,40,.4)"><span class="step-n">GO</span><h3>Try it now</h3><p>Install the extension and follow the quickstart.</p><p style="margin-top:14px"><a class="btn primary" href="download.html">Download extension</a></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" style="background:var(--bg-2)">
+    <div class="container center">
+      <p class="eyebrow">Features</p>
+      <h2>Private by default. Safe by design.</h2>
+      <p class="sub">Built so an AI agent can help you shop without ever being able to spend on its own.</p>
+      <div class="grid three" style="text-align:left">
+        <div class="card"><div class="icon">🛡️</div><h3>Shielded payments</h3><p>Orchard and Ironwood transactions hide sender, receiver, amount and memo from chain observers.</p></div>
+        <div class="card"><div class="icon">🤖</div><h3>Agent that can't buy</h3><p>The agent only asks the server to <i>price</i> a basket. Every purchase needs your click. Plans are single-use and expire in 10 minutes.</p></div>
+        <div class="card"><div class="icon">🔑</div><h3>Viewing-key only</h3><p>The server watches deposits with a viewing key. A server compromise can't move your funds.</p></div>
+        <div class="card"><div class="icon">⚡</div><h3>One-click autofill</h3><p>Detects the checkout total, offers “Pay with Zcash” and fills the gift-card field. React-form safe.</p></div>
+        <div class="card"><div class="icon">🔒</div><h3>Spend caps</h3><p>$10 per order, $25 per day by default. Above the cap the server refuses.</p></div>
+        <div class="card"><div class="icon">♻️</div><h3>Crash-safe</h3><p>Every purchase step is saved before and after. A restart never buys twice.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="container">
+      <p class="eyebrow">Privacy</p>
+      <h2>Who learns what</h2>
+      <p class="sub">Honest trust assumptions, not marketing.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Party</th><th>Learns</th><th>Doesn't learn</th></tr></thead>
+          <tbody>
+            <tr><td>Merchant</td><td>A gift card was redeemed</td><td>Any crypto, wallet or payment history</td></tr>
+            <tr><td>Bitrefill</td><td>Our operator bought card X</td><td>Which customer, or their wallet</td></tr>
+            <tr><td>Chain observers</td><td>A shielded tx happened</td><td>Sender, receiver, amount, memo</td></tr>
+            <tr><td>LLM provider</td><td>Chat text</td><td>Addresses, codes, amounts</td></tr>
+            <tr><td>Operator</td><td>Order contents; with a prepaid balance, which purchases belong to which account</td><td>Identity (no signup)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout" style="margin-top:28px"><p>The prepaid balance is custodial. If you want unlinkability, pay each order by QR with a fresh address instead.</p></div>
+    </div>
+  </section>
+
+  <section style="background:var(--bg-2)">
+    <div class="container center">
+      <p class="eyebrow">Guardrails</p>
+      <h2>Numbers that keep you safe</h2>
+      <div class="grid three" style="text-align:left">
+        <div class="card"><div class="stat">$10</div><h3>Max per order</h3><p>Configurable via <code>PER_ORDER_CAP_USD</code>.</p></div>
+        <div class="card"><div class="stat">$25</div><h3>Max per day</h3><p>Configurable via <code>DAILY_CAP_USD</code>.</p></div>
+        <div class="card"><div class="stat">0</div><h3>Purchases without a click</h3><p>The agent cannot create orders or set prices.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="container center">
+      <p class="eyebrow">FAQ</p>
+      <h2>Questions, answered</h2>
+      <div class="faq" style="text-align:left">
+        <details><summary>Is this using real money?</summary><p>The demo payment ran on testnet ZEC, but the Bitrefill purchase and the Flipkart card are real. Mainnet is the same code with <code>ZCASH_NETWORK=main</code>.</p></details>
+        <details><summary>Which merchants work?</summary><p>Flipkart India is verified end to end. About 24 other Indian merchants are mapped but not yet enabled.</p></details>
+        <details><summary>Which browsers are supported?</summary><p>Chrome and other Chromium browsers (Edge, Brave, Arc) via Manifest V3.</p></details>
+        <details><summary>Why isn't it on the Chrome Web Store?</summary><p>It's a hackathon build, so you install it as an unpacked extension. The download page walks you through it in under a minute.</p></details>
+        <details><summary>Can the operator see my purchases?</summary><p>With a prepaid balance, yes: the operator can link purchases to your wallet token. Pay by QR to avoid that.</p></details>
+        <details><summary>Are withdrawals supported?</summary><p>Not yet. They're manual, because the server deliberately has no spending key.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="container">
+      <div class="final">
+        <h2>Pay privately, in one click</h2>
+        <p class="sub" style="margin:0 auto 28px">Install the extension and make your first shielded checkout.</p>
+        <a class="btn primary lg" href="download.html">⬇ Download extension</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <span>© 2026 ShieldCheckout · Free Society Hack, Mumbai</span>
+      <span><a href="docs.html">Docs</a> · <a href="download.html">Download</a> · <a href="https://github.com/manovHacksaw/sheildpay">GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>

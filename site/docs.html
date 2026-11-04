@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docs – ShieldCheckout</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="top">
+    <div class="container">
+      <a href="index.html" class="logo"><span class="logo-mark">S</span> ShieldCheckout</a>
+      <div class="links"><a href="index.html#how">How it works</a><a href="docs.html">Docs</a></div>
+      <a class="btn primary" href="download.html">Download extension</a>
+    </div>
+  </nav>
+
+  <div class="container docs-layout">
+    <aside class="sidebar">
+      <h4>Getting started</h4>
+      <a href="#overview">Overview</a>
+      <a href="#install">Install the extension</a>
+      <a href="#quickstart">Run the server</a>
+      <h4>Using it</h4>
+      <a href="#shopping">Shop from chat</a>
+      <a href="#autofill">Checkout autofill</a>
+      <a href="#topup">Add funds</a>
+      <h4>Reference</h4>
+      <a href="#config">Configuration</a>
+      <a href="#guardrails">Guardrails</a>
+      <a href="#privacy">Privacy &amp; trust</a>
+      <a href="#limits">Limitations</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </aside>
+
+    <article class="doc">
+      <h1>Documentation</h1>
+      <p>ShieldCheckout lets you pay at Indian checkouts with shielded Zcash. An agent prices your basket, buys a gift card on Bitrefill, and the Chrome extension fills it into the merchant's payment page.</p>
+
+      <h2 id="overview">Overview</h2>
+      <pre><code>"₹300 on flipkart" → agent plans basket → you click Pay → Bitrefill invoice → card delivered → extension fills checkout</code></pre>
+      <p>Three pieces work together:</p>
+      <ul>
+        <li><b>Server</b> (<code>server/</code>): agent, pricing, ledger, Bitrefill fulfilment. Serves the chat UI at <code>/agent</code>.</li>
+        <li><b>Watcher</b> (<code>watcher/</code>, Rust): watches the chain for deposits using a viewing key only.</li>
+        <li><b>Extension</b> (<code>extension/</code>): detects checkouts and types the card code and PIN.</li>
+      </ul>
+
+      <h2 id="install">Install the extension</h2>
+      <ol>
+        <li><a href="download.html">Download the zip</a> and extract it somewhere permanent.</li>
+        <li>Open <code>chrome://extensions</code> and enable <b>Developer mode</b>.</li>
+        <li>Click <b>Load unpacked</b> and select the extracted folder (the one containing <code>manifest.json</code>).</li>
+        <li>Pin the ShieldCheckout icon from the puzzle-piece menu.</li>
+      </ol>
+      <p>Or build it yourself:</p>
+      <pre><code>cd extension
+npm ci
+npm run build      # output in extension/dist</code></pre>
+
+      <h2 id="quickstart">Run the server (testnet, real cards)</h2>
+      <p>Requires Node 22+, Rust stable, Chrome, a Bitrefill account with USD store credit, and a little testnet ZEC (TAZ) from a faucet.</p>
+      <pre><code>git clone https://github.com/manovHacksaw/sheildpay && cd sheildpay
+
+# 1. Receiving wallet (server only gets the viewing key)
+cd watcher
+cargo +stable run -q --example gen_wallet -- wallet-seed-testnet.txt test
+
+# 2. Config
+cd ../server &amp;&amp; npm ci &amp;&amp; cp .env.testnet.example .env.testnet
+# edit .env.testnet: BITREFILL_API_KEY, ZCASH_UFVK
+
+# 3. Watcher (terminal 1)
+cd ../watcher &amp;&amp; set -a &amp;&amp; . ../server/.env.testnet &amp;&amp; set +a &amp;&amp; cargo +stable run
+
+# 4. Server (terminal 2)
+cd server &amp;&amp; npx tsx --env-file=.env.testnet src/index.ts</code></pre>
+      <div class="callout"><p>Keep <code>wallet-seed*.txt</code> private. They are gitignored; never commit or share them.</p></div>
+
+      <h2 id="shopping">Shop from chat</h2>
+      <p>Open <a href="http://localhost:8787/agent">localhost:8787/agent</a> and type what you want, for example <code>₹50 on flipkart</code>. The agent lists merchants, searches the catalog and asks the server for a price. You get the cards, fee and ZEC total, plus a “fewest cards” alternative.</p>
+      <p>Then choose either:</p>
+      <ul>
+        <li><b>Pay from balance</b>: debits your prepaid balance and buys immediately.</li>
+        <li><b>Scan QR</b>: a ZIP-321 URI with a fresh address for this one order.</li>
+      </ul>
+
+      <h2 id="topup">Add funds</h2>
+      <p>Click <b>Add funds</b> in the agent page. Send shielded ZEC to the address shown and wait for 1 confirmation (about 75 s on testnet). Each deposit is credited exactly once.</p>
+
+      <h2 id="autofill">Checkout autofill</h2>
+      <p>On a supported checkout (Flipkart today), the extension reads the order total and shows a “Pay with Zcash” option. Once your card is ready it fills the gift-card number and PIN using real input events, so React-controlled forms accept it.</p>
+      <div class="callout"><p>Bitrefill sometimes delivers Flipkart cards as a redemption link instead of a code and PIN. Open the link, copy the code, and the extension can fill it in.</p></div>
+
+      <h2 id="config">Configuration</h2>
+      <p>Set these in <code>server/.env.testnet</code> (or <code>.env</code> for mainnet).</p>
+      <ul>
+        <li><code>BITREFILL_API_KEY</code>: Bitrefill REST v2 bearer key.</li>
+        <li><code>ZCASH_UFVK</code>: unified full viewing key from step 1.</li>
+        <li><code>ZCASH_NETWORK</code>: <code>test</code> or <code>main</code>.</li>
+        <li><code>PER_ORDER_CAP_USD</code> (default 10), <code>DAILY_CAP_USD</code> (default 25).</li>
+        <li><code>ENABLED_MERCHANTS</code>: merchants that may be sold (Flipkart today).</li>
+        <li><code>TESTNET_REAL_PURCHASES=1</code>: opt-in for testnet ZEC buying real cards; binds to 127.0.0.1.</li>
+      </ul>
+      <div class="callout"><p>Set <b>USD</b> as your primary store-credit currency on Bitrefill. Otherwise the API reports <code>balance: 0</code> and the caps will refuse every order.</p></div>
+
+      <h2 id="guardrails">Guardrails</h2>
+      <ul>
+        <li>The agent can only request a price. Every purchase needs your click. Plans are single-use and expire in 10 minutes.</li>
+        <li>Per-order and per-day caps are enforced by the server.</li>
+        <li>Bitrefill balance is checked before quoting.</li>
+        <li>Balance debits are atomic, so two clicks can't overspend.</li>
+        <li>Each purchase step is persisted; a restart mid-purchase halts for manual review instead of risking a double buy.</li>
+        <li>Card codes are masked on screen; order files are mode 600 and gitignored.</li>
+      </ul>
+
+      <h2 id="privacy">Privacy &amp; trust</h2>
+      <p>Merchants never see crypto, and chain observers see only a shielded transaction. The prepaid balance is <b>custodial</b>: the operator can link purchases to an account. For unlinkable payments use the per-order QR flow. Server logs and IPs are not hidden (no Tor).</p>
+
+      <h2 id="limits">Limitations</h2>
+      <ul>
+        <li>Demo payments ran on testnet ZEC; the cards are real.</li>
+        <li>Withdrawals from the prepaid balance are manual.</li>
+        <li>Only Flipkart is verified end to end.</li>
+        <li>Cards release at 1 confirmation; ZEC/USD price risk sits with the operator for the life of a quote.</li>
+      </ul>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <h3>Extension doesn't show “Pay with Zcash”</h3>
+      <p>Make sure you're on a Flipkart payment page and the extension is enabled. Reload the tab after installing.</p>
+      <h3>Server refuses every order</h3>
+      <p>Check the caps and that Bitrefill's primary store-credit currency is USD.</p>
+      <h3>Deposit not credited</h3>
+      <p>Confirm the watcher is running and wait for 1 confirmation.</p>
+    </article>
+  </div>
+
+  <footer>
+    <div class="container">
+      <span>© 2026 ShieldCheckout</span>
+      <span><a href="index.html">Home</a> · <a href="download.html">Download</a> · <a href="https://github.com/manovHacksaw/sheildpay">GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>
