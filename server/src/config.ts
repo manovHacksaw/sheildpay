@@ -10,4 +10,7 @@ export const cfg = {
   slippage: 0.01,
   feePct: Number(process.env.FEE_PCT ?? 0.025),
   feeMinUsd: Number(process.env.FEE_MIN_USD ?? 0.1),
+  // Demo only: sell REAL cards (paid from the Bitrefill balance) against free testnet ZEC. Anyone who can reach
+  // the server could drain the balance, so this mode also binds the server to loopback (see index.ts).
+  testnetRealPurchases: process.env.ZCASH_NETWORK === "test" && process.env.TESTNET_REAL_PURCHASES === "1",
 };

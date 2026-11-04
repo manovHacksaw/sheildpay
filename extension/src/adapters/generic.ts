@@ -107,9 +107,15 @@ export const generic: Adapter = {
 
 // "Have a Flipkart Gift Card?", "Add gift card", "Redeem voucher"... (a verb is required so plain "Gift Cards" links never match).
 const TOGGLE = /^(add|have an?|redeem|use|apply)\s+(an?\s+)?([a-z]+\s+)?(e-?)?gift\s*(card|voucher)s?\??$/i;
+// "Apply/Use gift card" is often a checkbox for an existing balance (Flipkart), so it only counts when no
+// "Add/Have/Redeem" toggle exists on the page.
+const WEAK_TOGGLE = /^(apply|use)\b/i;
 function findToggle(doc: Document): HTMLElement | null {
+  return findToggleWhere(doc, (t) => !WEAK_TOGGLE.test(t)) ?? findToggleWhere(doc, () => true);
+}
+function findToggleWhere(doc: Document, accept: (text: string) => boolean): HTMLElement | null {
   for (const el of doc.querySelectorAll<HTMLElement>("button,[role='button'],a,div,span,li,label,p,h3,h4")) {
-    if (!TOGGLE.test(el.textContent?.trim() ?? "")) continue;
+    if (!TOGGLE.test(el.textContent?.trim() ?? "") || !accept(el.textContent!.trim())) continue;
     // Use the innermost element carrying the text (icons or wrappers may add children around it).
     if ([...el.children].some((c) => TOGGLE.test(c.textContent?.trim() ?? ""))) continue;
     if (el.closest("header,footer,nav,[role='navigation'],[role='contentinfo']")) continue;

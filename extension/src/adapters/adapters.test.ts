@@ -37,6 +37,20 @@ describe("reveal", () => {
     generic.reveal!(document);
     expect(hit).toEqual(["t"]);
   });
+
+  // Flipkart payments page (Nov 2026): an "Apply Gift Card" checkbox for the existing balance sits BEFORE the
+  // "Add Gift Card" link that opens the voucher dialog. Clicking the checkbox would toggle the user's balance.
+  it("opens Add Gift Card, not the Apply Gift Card balance checkbox", () => {
+    document.body.innerHTML = `
+      <div><label><input type="checkbox" id="cb"><span id="apply">Apply Gift Card</span></label>
+        <div>Available Balance ₹50</div><span id="add">Add Gift Card</span></div>
+      <div><span>Total Amount</span><span>₹265</span></div>`;
+    const hit: string[] = [];
+    document.querySelectorAll<HTMLElement>("#apply,#add").forEach((e) => e.addEventListener("click", () => hit.push(e.id)));
+    generic.reveal!(document);
+    expect(hit).toEqual(["add"]);
+    expect(generic.getTotal(document)).toEqual({ amount: 265, currency: "INR" });
+  });
 });
 
 describe("flipkart-like payment page", () => {

@@ -28,7 +28,10 @@ export async function zecUsd(): Promise<number> {
     "https://api.coinbase.com/v2/prices/ZEC-USD/spot",
     "https://api.kraken.com/0/public/Ticker?pair=ZECUSD",
   ];
-  const [a, b] = await Promise.all(sources.map((u) => fetch(u).then((r) => r.json())));
+  // One source being down (or a DNS blip) must not fail the order: average whichever answered.
+  const [ra, rb] = await Promise.allSettled(sources.map((u) => fetch(u, { signal: AbortSignal.timeout(8000) }).then((r) => r.json())));
+  for (const r of [ra, rb]) if (r.status === "rejected") console.error("price source failed:", (r.reason as any)?.cause?.code ?? (r.reason as Error)?.message);
+  const a = ra.status === "fulfilled" ? ra.value : null, b = rb.status === "fulfilled" ? rb.value : null;
   const prices = [Number(a?.data?.amount), Number(Object.values(b?.result ?? {}).map((x: any) => x.c?.[0])[0])].filter((n) => n > 0);
   if (!prices.length) throw new Error("no ZEC price available");
   return prices.reduce((x, y) => x + y) / prices.length;

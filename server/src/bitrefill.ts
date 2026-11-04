@@ -41,6 +41,9 @@ export const MERCHANTS: Record<string, { slug: string; redeem: "web" | "copy" }>
   "www.wakefit.co": { slug: "wakefit-india", redeem: "web" },
   "www.uber.com": { slug: "uber-india", redeem: "copy" },
   "www.target.com": { slug: "target-usa", redeem: "web" }, // US, used for the first live test
+  // Tested 4 Nov 2026: Bitrefill has no sitewide Amazon.in card. Amazon Fresh India arrives as a xoxoday link
+  // (code + PIN behind "Collect Voucher") and lands in a Fresh-only voucher balance, so it is not enabled.
+  "www.amazon.in": { slug: "amazon-fresh-india", redeem: "web" },
 };
 
 // Only merchants verified end to end are sold. ENABLED_MERCHANTS="all" (or a comma list of hosts) overrides this.
@@ -52,7 +55,7 @@ if (!enabled.includes("all")) for (const k of Object.keys(MERCHANTS)) if (!enabl
 // In testnet mode the real merchants are removed entirely: testnet coins are free, so selling real cards
 // against them would let anyone drain the Bitrefill credit.
 // MAINNET_FREE_TEST=1 does the same on mainnet for a one-off live check of the free test card (no float spent).
-if (process.env.ZCASH_NETWORK === "test" || process.env.MAINNET_FREE_TEST === "1") {
+if ((process.env.ZCASH_NETWORK === "test" && !cfg.testnetRealPurchases) || process.env.MAINNET_FREE_TEST === "1") {
   for (const k of Object.keys(MERCHANTS)) delete MERCHANTS[k];
   MERCHANTS["test.shieldcheckout.local"] = { slug: "test-gift-card-code", redeem: "web" };
 }

@@ -1,6 +1,6 @@
 export const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
-export type OrderStatus = "awaiting_payment" | "seen" | "confirmed" | "issuing" | "ready" | "failed";
+export type OrderStatus = "awaiting_payment" | "seen" | "paid" | "confirmed" | "issuing" | "ready" | "failed";
 export interface Voucher { code: string; pin?: string }
 
 export interface Order {
@@ -19,20 +19,24 @@ export interface Order {
   redeem: "web" | "copy";
   vouchers?: Voucher[];
   error?: string;
+  paidFrom?: "balance";
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+async function call<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
   const res = await fetch(API_BASE + path, {
     ...init,
     credentials: "omit",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
   return res.json();
 }
 
-export const createOrder = (body: { host: string; amount: number; currency: string }) =>
-  call<Order>("/orders", { method: "POST", body: JSON.stringify(body) });
+export const createOrder = (body: { host: string; amount: number; currency: string; pay?: "balance" }, token?: string) =>
+  call<Order>("/orders", { method: "POST", body: JSON.stringify(body) }, token);
+
+export interface Wallet { balanceZec: number; balanceUsdEstimate: number | null }
+export const getWallet = (token: string) => call<Wallet>("/wallet", undefined, token);
 
 export const getOrder = (id: string) => call<Order>(`/orders/${id}`);
 

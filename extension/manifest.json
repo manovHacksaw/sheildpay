@@ -25,6 +25,15 @@
         "src/content/index.ts"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:8787/agent*"
+      ],
+      "js": [
+        "src/content/wallet-link.ts"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {

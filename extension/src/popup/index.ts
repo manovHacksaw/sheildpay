@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import type { Order, Quote } from "../lib/api";
+import type { Order, Quote, Wallet } from "../lib/api";
 
 interface Ctx { host: string; amount: number; currency: string }
 const app = document.getElementById("app")!;
@@ -12,7 +12,7 @@ const el = (html: string) => Object.assign(document.createElement("div"), { inne
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const STEPS = ["Waiting for your ZEC", "Confirming payment", "Buying your card", "Applying to checkout"];
-const stepOf = (s: Order["status"]) => ({ awaiting_payment: 0, seen: 1, confirmed: 2, issuing: 2, ready: 3, failed: 0 })[s];
+const stepOf = (s: Order["status"]) => ({ awaiting_payment: 0, seen: 1, paid: 2, confirmed: 2, issuing: 2, ready: 3, failed: 0 })[s];
 
 async function tabId(): Promise<number> {
   const q = Number(new URLSearchParams(location.search).get("tab"));
@@ -34,6 +34,8 @@ async function main() {
   app.innerHTML = `<h1>Confirm your purchase</h1><p class="sub">${esc(ctx.host)}</p><p>Getting your quote…</p>`;
   let q: Quote;
   try { q = await send<Quote>({ type: "quote", body: ctx }); } catch (e) { return fail((e as Error).message); }
+  const w = await send<Wallet | null>({ type: "wallet" }).catch(() => null);
+  const canBalance = !!w && w.balanceZec >= q.zecAmount;
 
   const cards = q.cards.map((c) => money(q.currency, c)).join(" + ");
   app.innerHTML = `
@@ -45,23 +47,28 @@ async function main() {
     <div class="row"><span>You pay</span><span class="big">${q.zecAmount} ZEC</span></div>
     <p class="note">Paid privately from your shielded wallet. Quote valid for ${Math.round(q.validForMs / 60000)} minutes.
     ${q.redeem === "copy" ? "This store redeems gift cards in its app, so you will get a code to copy." : "The card is applied to this checkout automatically."}</p>
-    <button class="p" id="go">Proceed</button><div id="e"></div>`;
-  const go = document.getElementById("go") as HTMLButtonElement;
-  go.onclick = async () => {
-    go.disabled = true; go.textContent = "Creating order…";
-    try { track(tab, await send<Order>({ type: "create", tab, body: ctx })); }
-    catch (e) { go.disabled = false; go.textContent = "Proceed"; document.getElementById("e")!.innerHTML = `<p class="err">${esc((e as Error).message)}</p>`; }
+    ${w ? `<div class="row"><span>Prepaid balance</span><span>${w.balanceZec} ZEC</span></div>` : ""}
+    ${canBalance ? `<button class="p" id="bal">Pay from balance</button>` : ""}
+    <button class="${canBalance ? "s" : "p"}" id="go" ${canBalance ? 'style="width:100%;margin-top:8px;padding:10px"' : ""}>${canBalance ? "Pay with QR instead" : "Proceed"}</button><div id="e"></div>`;
+  const start = async (btn: HTMLButtonElement, pay?: "balance") => {
+    const label = btn.textContent; btn.disabled = true; btn.textContent = pay ? "Paying…" : "Creating order…";
+    try { track(tab, await send<Order>({ type: "create", tab, body: { ...ctx, ...(pay ? { pay } : {}) } })); }
+    catch (e) { btn.disabled = false; btn.textContent = label; document.getElementById("e")!.innerHTML = `<p class="err">${esc((e as Error).message)}</p>`; }
   };
+  const go = document.getElementById("go") as HTMLButtonElement;
+  go.onclick = () => start(go);
+  const bal = document.getElementById("bal") as HTMLButtonElement | null;
+  if (bal) bal.onclick = () => start(bal, "balance");
 }
 
 async function track(tab: number, first: Order) {
   let o = first;
   const canvas = document.createElement("canvas");
-  await QRCode.toCanvas(canvas, o.paymentUri, { width: 200 });
+  if (o.paymentUri) await QRCode.toCanvas(canvas, o.paymentUri, { width: 200 });
   const render = () => {
     const cur = stepOf(o.status);
     app.innerHTML = "";
-    const head = el(`<h1>${o.status === "ready" ? "Payment complete" : "Send " + o.zecAmount + " ZEC"}</h1>`);
+    const head = el(`<h1>${o.status === "ready" ? "Payment complete" : o.paidFrom === "balance" ? "Paid " + o.zecAmount + " ZEC from balance" : "Send " + o.zecAmount + " ZEC"}</h1>`);
     app.append(head);
     if (o.status === "awaiting_payment") {
       app.append(canvas);

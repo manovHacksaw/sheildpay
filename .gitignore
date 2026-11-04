@@ -7,3 +7,4 @@ wallet-seed-testnet.txt
 .env.testnet
 watcher-state*.json
 orders-*.json
+wallet-*.json

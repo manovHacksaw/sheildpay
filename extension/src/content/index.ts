@@ -13,6 +13,7 @@ const money = (cur: string, n: number) => `${SYM[cur] ?? cur + " "}${n.toLocaleS
 const LABEL: Record<Order["status"], string> = {
   awaiting_payment: "Waiting for your ZEC payment… open the ShieldCheckout popup to pay",
   seen: "Payment seen, waiting for confirmation…",
+  paid: "Paid from your balance. Buying your gift card…",
   confirmed: "Buying your gift card…",
   issuing: "Buying your gift card…",
   ready: "Done",

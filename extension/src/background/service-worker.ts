@@ -1,4 +1,4 @@
-import { createOrder, getOrder, getQuote, Order } from "../lib/api";
+import { createOrder, getOrder, getQuote, getWallet, Order } from "../lib/api";
 
 // All network access happens here so content scripts and the popup never talk to the proxy directly.
 // Per-tab state lives in chrome.storage.session (the worker is suspended when idle):
@@ -30,8 +30,17 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         return (await read(key("ctx", tab))) ?? null;
       case "quote":
         return getQuote(msg.body);
+      case "wallet-token":
+        await chrome.storage.local.set({ walletToken: String(msg.token) });
+        return true;
+      case "wallet": {
+        const t = (await chrome.storage.local.get("walletToken")).walletToken as string | undefined;
+        return t ? getWallet(t).catch(() => null) : null;
+      }
       case "create": {
-        const order = await createOrder(msg.body);
+        const t = (await chrome.storage.local.get("walletToken")).walletToken as string | undefined;
+        if (msg.body.pay === "balance" && !t) throw new Error("Open the ShieldCheckout agent page once to connect your balance.");
+        const order = await createOrder(msg.body, msg.body.pay === "balance" ? t : undefined);
         await chrome.storage.session.set({ [key("active", tab)]: order.id, [order.id]: order });
         await chrome.alarms.create(`poll:${order.id}`, { periodInMinutes: 0.5 });
         return order;

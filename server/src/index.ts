@@ -2,12 +2,14 @@ import http from "node:http";
 import fs from "node:fs";
 import { AGENT_HTML } from "./agent-page.js";
 import { randomUUID } from "node:crypto";
+import QRCode from "qrcode";
 import { cfg, missing } from "./config.js";
 import { MERCHANTS, getUsdBalanceCents, getProduct, pickCards, createInvoice, getInvoice, getRedemption, isDelivered, findMerchant, Card } from "./bitrefill.js";
 import { plans } from "./plan.js";
 import { chat, llmEnabled, planSummary } from "./agent.js";
 import { watcher, zecUsd } from "./rails.js";
 import { zip321 } from "./zip321.js";
+import { auth, createAccount, createDeposit, debit, getAccount, refund, summary, toZat, Account } from "./wallet.js";
 
 interface Voucher { code: string; pin?: string; label?: string }
 interface Order {
@@ -15,6 +17,7 @@ interface Order {
   currency: string; cardValue: number; surplus: number; cards: number[]; costUsd: number; feeUsd: number;
   redeem: "web" | "copy"; vouchers?: Voucher[]; error?: string;
   lines?: { label: string; cards: number[]; redeem: "web" | "copy" }[]; /** set for agent baskets */
+  paidFrom?: "balance"; accountId?: string; refunded?: boolean; /** set when paid from the prepaid balance */
 }
 // Per-card purchase progress, so a restart resumes instead of buying twice.
 interface Item { started: boolean; invoiceId?: string; orderId?: string; voucher?: Voucher }
@@ -36,7 +39,7 @@ const persist = () => {
 };
 
 const send = (res: http.ServerResponse, code: number, body: unknown) => {
-  res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" });
+  res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type, authorization" });
   res.end(JSON.stringify(body));
 };
 const readJson = (req: http.IncomingMessage) =>
@@ -56,7 +59,7 @@ async function quote(b: { host: string; amount: number; currency: string }) {
   const costUsd = Number(cards.reduce((x, c) => x + c.price, 0).toFixed(2)); // Bitrefill package prices are USD
   const free = product.id.startsWith("test-"); // Bitrefill test products are free
   const mainnetFreeTest = process.env.MAINNET_FREE_TEST === "1";
-  if (process.env.ZCASH_NETWORK === "test" ? !free : mainnetFreeTest !== free) throw new Error("product not allowed in this mode");
+  if (process.env.ZCASH_NETWORK === "test" ? !free && !cfg.testnetRealPurchases : mainnetFreeTest !== free) throw new Error("product not allowed in this mode");
   if (costUsd > cfg.perOrderCapUsd) throw new Error(`order exceeds the ${cfg.perOrderCapUsd} USD per-order limit`);
   const day = new Date().toISOString().slice(0, 10);
   if (spentToday.day !== day) spentToday = { day, usd: 0 };
@@ -75,16 +78,18 @@ async function previewQuote(b: { host: string; amount: number; currency: string 
     costUsd: q.costUsd, feeUsd: q.feeUsd, zecAmount: q.zecAmount, redeem: q.m.redeem, validForMs: cfg.quoteTtlMs };
 }
 
-async function createOrder(b: { host: string; amount: number; currency: string }): Promise<Order> {
+async function createOrder(b: { host: string; amount: number; currency: string }, payer?: Account): Promise<Order> {
   const { m, productId, cards, cardValue, costUsd, feeUsd, zecAmount, free } = await quote(b);
   const id = randomUUID();
-  const address = await watcher.newAddress();
+  if (payer) debit(payer, toZat(zecAmount), id); // prepaid balance: nothing to wait for
+  const address = payer ? "" : await watcher.newAddress();
   if (!free) { spentToday.usd += costUsd; persist(); }
   const o: Order = {
     id, status: "awaiting_payment", zecAmount, address, currency: b.currency, cardValue, costUsd, feeUsd,
     surplus: cardValue - b.amount, cards: cards.map((c) => c.value), redeem: m.redeem,
-    paymentUri: zip321(address, zecAmount, `shieldcheckout:${id.slice(0, 8)}`),
+    paymentUri: payer ? "" : zip321(address, zecAmount, `shieldcheckout:${id.slice(0, 8)}`),
     expiresAt: Date.now() + cfg.quoteTtlMs,
+    ...(payer ? { status: "paid", paidFrom: "balance" as const, accountId: payer.id } : {}),
   };
   const rec: Rec = { order: o, productId, cards, items: cards.map(() => ({ started: false })), at: Date.now() };
   orders.set(id, rec);
@@ -94,17 +99,19 @@ async function createOrder(b: { host: string; amount: number; currency: string }
 }
 
 /** The user's approval of an agent plan: only this creates an order. Price is re-checked against the live rate. */
-async function createOrderFromPlan(planId: string): Promise<Order> {
+async function createOrderFromPlan(planId: string, payer?: Account): Promise<Order> {
   const plan = plans.get(planId);
   if (!plan || plan.expiresAt < Date.now()) throw new Error("this plan has expired; ask the agent again");
   plans.delete(planId); // single use
-  const rate = await zecUsd();
+  const rate = await zecUsd().catch((e) => { plans.set(planId, plan); throw e; });
   const zecAmount = plan.free && process.env.MAINNET_FREE_TEST === "1" ? 0.0001
     : Number((((plan.costUsd + plan.feeUsd) / rate) * (1 + cfg.slippage)).toFixed(8));
   const day = new Date().toISOString().slice(0, 10);
   if (spentToday.day !== day) spentToday = { day, usd: 0 };
   const id = randomUUID();
-  const address = await watcher.newAddress();
+  // Paying from the prepaid balance: debit now (no payment to wait for). A failed debit gives the plan back.
+  if (payer) { try { debit(payer, toZat(zecAmount), id); } catch (e) { plans.set(planId, plan); throw e; } }
+  const address = payer ? "" : await watcher.newAddress();
   if (!plan.free) { spentToday.usd += plan.costUsd; persist(); }
   const cards = plan.lines.flatMap((l) => l.cards);
   const o: Order = {
@@ -112,7 +119,8 @@ async function createOrderFromPlan(planId: string): Promise<Order> {
     costUsd: plan.costUsd, feeUsd: plan.feeUsd, surplus: plan.lines.reduce((x, l) => x + l.surplus, 0), cards: cards.map((c) => c.value),
     redeem: plan.lines.every((l) => l.redeem === "copy") ? "copy" : "web",
     lines: plan.lines.map((l) => ({ label: l.label, cards: l.cards.map((c) => c.value), redeem: l.redeem })),
-    paymentUri: zip321(address, zecAmount, `shieldcheckout:${id.slice(0, 8)}`), expiresAt: Date.now() + cfg.quoteTtlMs,
+    paymentUri: payer ? "" : zip321(address, zecAmount, `shieldcheckout:${id.slice(0, 8)}`), expiresAt: Date.now() + cfg.quoteTtlMs,
+    ...(payer ? { status: "paid", paidFrom: "balance" as const, accountId: payer.id } : {}),
   };
   const rec: Rec = { order: o, cards, items: cards.map(() => ({ started: false })), at: Date.now() };
   orders.set(id, rec);
@@ -140,10 +148,12 @@ async function advance(r: Rec, resumed = false) {
   try {
     while (Date.now() < deadline && !["ready", "failed"].includes(o.status)) {
       await new Promise((res) => setTimeout(res, 5000));
-      const s = await watcher.status(o.address);
-      if (s.receivedZec < o.zecAmount) continue;
-      if (o.status === "awaiting_payment") { o.status = "seen"; save(); }
-      if ((s.confirmations ?? 0) < 1) continue;
+      if (o.paidFrom !== "balance") {
+        const s = await watcher.status(o.address);
+        if (s.receivedZec < o.zecAmount) continue;
+        if (o.status === "awaiting_payment") { o.status = "seen"; save(); }
+        if ((s.confirmations ?? 0) < 1) continue;
+      }
       o.status = "issuing"; save();
       for (let i = 0; i < r.cards.length; i++) {
         const it = r.items[i];
@@ -171,6 +181,11 @@ async function advance(r: Rec, resumed = false) {
     }
     if (!["ready", "failed"].includes(o.status)) { o.status = "failed"; o.error = "Payment not received before quote expired."; }
   } catch (e) { o.status = "failed"; o.error = (e as Error).message; }
+  // Balance-paid and nothing was bought yet: give the ZEC back. Once a purchase started it goes to manual review.
+  if (o.status === "failed" && o.paidFrom === "balance" && !o.refunded) {
+    const acct = getAccount(o.accountId ?? "");
+    if (acct && !r.items.some((i) => i.started)) { refund(acct, toZat(o.zecAmount), o.id); o.refunded = true; o.error += " Refunded to your balance."; }
+  }
   save();
 }
 
@@ -199,17 +214,39 @@ http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/agent/approve") {
       if (limited(req.socket.remoteAddress ?? "?", 10)) return send(res, 429, { error: "slow down" });
-      return send(res, 200, await createOrderFromPlan(String((await readJson(req)).planId)));
+      const body = await readJson(req);
+      return send(res, 200, await createOrderFromPlan(String(body.planId), body.pay === "balance" ? auth(req.headers.authorization) : undefined));
     }
     if (req.method === "POST" && url.pathname === "/quote") return send(res, 200, await previewQuote(await readJson(req)));
-    if (req.method === "POST" && url.pathname === "/orders") return send(res, 200, await createOrder(await readJson(req)));
+    if (req.method === "POST" && url.pathname === "/orders") {
+      const body = await readJson(req);
+      return send(res, 200, await createOrder(body, body.pay === "balance" ? auth(req.headers.authorization) : undefined));
+    }
     const m = url.pathname.match(/^\/orders\/([\w-]+)$/);
     if (req.method === "GET" && m) {
       const o = orders.get(m[1])?.order;
       return o ? send(res, 200, o) : send(res, 404, { error: "not found" });
     }
+    if (req.method === "POST" && url.pathname === "/wallet") {
+      if (limited(req.socket.remoteAddress ?? "?", 5)) return send(res, 429, { error: "slow down" });
+      return send(res, 200, createAccount());
+    }
+    if (req.method === "GET" && url.pathname === "/wallet") return send(res, 200, await summary(auth(req.headers.authorization)));
+    if (req.method === "POST" && url.pathname === "/wallet/deposit")
+      return send(res, 200, await createDeposit(auth(req.headers.authorization), Number((await readJson(req)).usd)));
+    if (req.method === "GET" && url.pathname === "/qr") {
+      // Payment QR for the agent page, rendered here so the page needs no third-party script.
+      const d = url.searchParams.get("d") ?? "";
+      if (!d.startsWith("zcash:") || d.length > 600) return send(res, 400, { error: "bad payment uri" });
+      res.writeHead(200, { "content-type": "image/svg+xml", "cache-control": "no-store" });
+      return void res.end(await QRCode.toString(d, { type: "svg", margin: 2, color: { dark: "#000", light: "#fff" } }));
+    }
     if (url.pathname === "/merchants") return send(res, 200, Object.keys(MERCHANTS));
     if (url.pathname === "/health") return send(res, 200, { ok: true, configured: missing.length === 0, missing });
     send(res, 404, { error: "not found" });
-  } catch (e) { send(res, 400, { error: (e as Error).message }); }
-}).listen(cfg.port, () => console.log(`shieldcheckout server :${cfg.port}`, missing.length ? `(NOT configured: ${missing.join(", ")})` : ""));
+  } catch (e) {
+    console.error(`${req.method} ${req.url}:`, (e as Error).message, (e as any)?.cause?.code ?? (e as any)?.cause?.message ?? "");
+    send(res, 400, { error: (e as Error).message });
+  }
+}).listen(cfg.port, cfg.testnetRealPurchases ? "127.0.0.1" : undefined, () => console.log(`shieldcheckout server :${cfg.port}`,
+  cfg.testnetRealPurchases ? "(TESTNET ZEC -> REAL cards; loopback only)" : "", missing.length ? `(NOT configured: ${missing.join(", ")})` : ""));
